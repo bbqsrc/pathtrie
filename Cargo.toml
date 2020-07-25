@@ -1,0 +1,19 @@
+[package]
+name = "pathtrie"
+description = "A specialised trie for paths in the style of a Patricia/radix trie"
+version = "0.1.0"
+authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[[bench]]
+name = "benches"
+path = "benches/main.rs"
+harness = false
+
+[dependencies]
+serde = { version = "1.0.114", optional = true, features = ["derive"] }
+
+[dev-dependencies]
+criterion = "*"
+rand = "*"
