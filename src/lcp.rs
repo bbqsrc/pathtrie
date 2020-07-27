@@ -1,3 +1,5 @@
+use crate::node;
+
 #[inline]
 pub(crate) fn find_common_prefix(source: &[u8], candidate: &[u8]) -> Prefix {
     let result = source
@@ -6,7 +8,7 @@ pub(crate) fn find_common_prefix(source: &[u8], candidate: &[u8]) -> Prefix {
         .position(|(x, y)| x != y);
 
     match (source.len() == candidate.len(), result) {
-        (_, Some(0)) => Prefix::NoMatch(source.cmp(candidate)),
+        (_, Some(0)) => Prefix::NoMatch(node::cmp(source, candidate)),
         (_, Some(len)) => Prefix::Divergent(len),
         (false, None) => {
             if source.len() > candidate.len() {
