@@ -5,6 +5,7 @@ version = "0.1.0"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/bbqsrc/pathtrie"
 
 [dependencies]
 serde = { version = "1.0.115", optional = true, features = ["derive"] }
@@ -14,6 +15,6 @@ indenter = "0.3.0"
 tracing = "0.1.19"
 
 [dev-dependencies]
-criterion = "*"
-rand = "*"
+criterion = "0.3.3"
+rand = "0.7.3"
 tracing-subscriber = { version = "0.2.11", features = ["fmt"] }
