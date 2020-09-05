@@ -348,6 +348,7 @@ impl<T: Integer> PathTrie<T> {
     const ALIGNMENT: u8 = size_of::<T>() as u8;
 
     pub fn write_fst<W: Write + Seek>(&self, writer: &mut W) -> Result<(), std::io::Error> {
+        let starting_offset = writer.seek(SeekFrom::Current(0))?;
         let mut current_parent: Box<[u8]> = Default::default();
         let node_zero_buf = vec![0; Self::NODE_SIZE].into_boxed_slice();
 
@@ -488,7 +489,7 @@ impl<T: Integer> PathTrie<T> {
         );
 
         // Seek back and write header
-        writer.seek(SeekFrom::Start(0))?;
+        writer.seek(SeekFrom::Start(starting_offset))?;
         writer.write_all(&[b'\xff', b'\xdf', Self::VERSION, Self::ALIGNMENT])?;
 
         writer.flush()
