@@ -21,6 +21,12 @@ pub struct Fst<T> {
     marker: PhantomData<T>,
 }
 
+impl<T> Debug for Fst<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+       write!(f, "Fst<{}> {{ .. }}", std::any::type_name::<T>())
+    }
+}
+
 impl<T> Fst<T>
 where
     T: Integer + Debug,
