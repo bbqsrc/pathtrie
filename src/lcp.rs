@@ -23,17 +23,17 @@ pub(crate) fn find_common_prefix(source: &[u8], candidate: &[u8]) -> Prefix {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Prefix {
-    NoMatch(std::cmp::Ordering), // No shared prefix at all, eg "abc" and "cdefg"
-    PerfectSubset(usize),        // eg "foo" inside "foobar"
-    Divergent(usize),            // eg "foobar" and "foojam"
-    Incomplete(usize),           // eg provided key "abcdef" but source key is "abc"
-    Exact,                       // eg "abc" and "abc"
+    NoMatch(core::cmp::Ordering), // No shared prefix at all, eg "abc" and "cdefg"
+    PerfectSubset(usize),         // eg "foo" inside "foobar"
+    Divergent(usize),             // eg "foobar" and "foojam"
+    Incomplete(usize),            // eg provided key "abcdef" but source key is "abc"
+    Exact,                        // eg "abc" and "abc"
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::Ordering;
+    use core::cmp::Ordering;
 
     #[test]
     fn no_match() {

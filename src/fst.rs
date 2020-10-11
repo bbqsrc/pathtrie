@@ -2,36 +2,42 @@ use crate::{
     lcp::{find_common_prefix, Prefix},
     Integer,
 };
-use std::{fmt::Debug, marker::PhantomData, mem::size_of, num::NonZeroU32};
+use core::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+    mem::size_of,
+    num::NonZeroU32,
+};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
+#[cfg_attr(feature = "std", derive(thiserror::Error))]
 pub enum Error {
-    #[error("Got invalid magic bytes: {0:?}")]
+    #[cfg_attr(feature = "std", error("Got invalid magic bytes: {0:?}"))]
     InvalidMagicBytes([u8; 2]),
 
-    #[error("Invalid alignment. Required: {1}, got: {0}")]
+    #[cfg_attr(feature = "std", error("Invalid alignment. Required: {1}, got: {0}"))]
     InvalidAlignment(u8, usize),
 
-    #[error("FST too small to be valid")]
+    #[cfg_attr(feature = "std", error("FST too small to be valid"))]
     TooSmall,
 }
 
-pub struct Fst<T> {
-    data: memmap::Mmap,
+pub struct Fst<'data, T> {
+    data: &'data [u8],
     marker: PhantomData<T>,
 }
 
-impl<T> Debug for Fst<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-       write!(f, "Fst<{}> {{ .. }}", std::any::type_name::<T>())
+impl<T> Debug for Fst<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Fst<{}> {{ .. }}", core::any::type_name::<T>())
     }
 }
 
-impl<T> Fst<T>
+impl<T> Fst<'_, T>
 where
     T: Integer + Debug,
 {
-    pub fn new(data: memmap::Mmap) -> Result<Fst<T>, Error> {
+    pub fn new(data: &[u8]) -> Result<Fst<'_, T>, Error> {
         if data.len() < size_of::<Header>() {
             return Err(Error::TooSmall);
         }
@@ -61,6 +67,7 @@ where
 
     #[inline(always)]
     fn node_after(&self, node: &Node<T>) -> &Node<T> {
+        #[cfg(feature = "alloc")]
         tracing::trace!("Node after: {:?}", node);
         let ptr = node as *const _ as *const u8;
         let offset_ptr = unsafe { ptr.add(node.len()) };
@@ -78,6 +85,7 @@ where
         let mut current_node = self.node_at(start_offset);
 
         loop {
+            #[cfg(feature = "alloc")]
             tracing::trace!(
                 "Current node: {:?}; len: {}",
                 &current_node,
@@ -87,6 +95,7 @@ where
             // Try to get matching value for key parts
             let common_prefix = match current_node.value() {
                 Value::Key(value_key) | Value::Final(value_key, _) => {
+                    #[cfg(feature = "alloc")]
                     tracing::trace!(
                         "Comparing value '{}' with our key: '{}'",
                         String::from_utf8_lossy(&value_key),
@@ -108,6 +117,7 @@ where
                 // Prefix::PerfectSubset(count) => {
                 Prefix::Incomplete(count) => {
                     key = &key[count..];
+                    #[cfg(feature = "alloc")]
                     tracing::trace!("Slicing key to: '{}'", String::from_utf8_lossy(key));
                 }
                 Prefix::Exact => {
@@ -171,8 +181,9 @@ pub(crate) struct Node<T: Integer> {
                            // value: [u8],
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> Debug for Node<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.value() {
             Value::None => f.debug_struct("Node::Empty").finish(),
             Value::Final(key, value) => f
@@ -204,7 +215,7 @@ impl<T: Integer> Node<T> {
                 let ptr =
                     unsafe { (self as *const Node<T> as *const u8).add(size_of::<NodeOffset>()) };
                 let len: u8 = unsafe { *ptr };
-                Value::Key(unsafe { std::slice::from_raw_parts(ptr.add(1), len as usize) })
+                Value::Key(unsafe { core::slice::from_raw_parts(ptr.add(1), len as usize) })
             }
             OffsetKind::Terminating => {
                 // Get the length (it's a u8)
@@ -213,7 +224,7 @@ impl<T: Integer> Node<T> {
                         .add(size_of::<NodeOffset>() + size_of::<T>())
                 };
                 let len: u8 = unsafe { *ptr };
-                let key = unsafe { std::slice::from_raw_parts(ptr.add(1), len as usize) };
+                let key = unsafe { core::slice::from_raw_parts(ptr.add(1), len as usize) };
                 Value::Final(key, self.raw_value)
             }
             OffsetKind::Empty => Value::None,

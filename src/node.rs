@@ -1,17 +1,24 @@
 use crate::Integer;
-use indenter::indented;
-use std::{
+use core::{
     cmp::Ordering,
-    fmt::{Debug, Display, Write},
+    fmt::{self, Debug, Display, Write},
 };
+use indenter::indented;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, vec, vec::Vec};
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "alloc")]
 pub enum NodeBody<T: Integer> {
     Children(Vec<Node<T>>),
     Value(T),
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> NodeBody<T> {
     pub(crate) fn assert_value(&self) -> T {
         match self {
@@ -22,16 +29,18 @@ impl<T: Integer> NodeBody<T> {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "alloc")]
 pub struct Node<T: Integer> {
     pub(crate) key: Box<[u8]>,
     pub(crate) body: NodeBody<T>,
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> Debug for Node<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut x = f.debug_struct("Node");
 
-        match std::str::from_utf8(&self.key) {
+        match core::str::from_utf8(&self.key) {
             Ok(v) => x.field("key", &v),
             Err(_) => x.field("key", &self.key),
         };
@@ -39,9 +48,10 @@ impl<T: Integer> Debug for Node<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> Display for Node<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match std::str::from_utf8(&self.key) {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match core::str::from_utf8(&self.key) {
             Ok(v) => f.write_fmt(format_args!("{:?}", v)),
             Err(_) => f.write_fmt(format_args!("{:?}", &self.key)),
         }?;
@@ -68,6 +78,7 @@ impl<T: Integer> Display for Node<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> Node<T> {
     pub(crate) fn diverge(&mut self, index: usize, partial: usize, key: &[u8], value: T) {
         let subnode = self.get_mut(index);
@@ -77,7 +88,7 @@ impl<T: Integer> Node<T> {
         match &mut subnode.body {
             NodeBody::Children(children) => {
                 let mut swap = Vec::new();
-                std::mem::swap(&mut swap, children);
+                core::mem::swap(&mut swap, children);
                 subnode.push(Node {
                     key: skey,
                     body: NodeBody::Children(swap),
@@ -105,12 +116,12 @@ impl<T: Integer> Node<T> {
 
     pub(crate) fn convert_value_to_children(&mut self, key: Box<[u8]>) {
         debug_assert!(
-            std::mem::discriminant(&self.body)
-                == std::mem::discriminant(&NodeBody::Value(T::default()))
+            core::mem::discriminant(&self.body)
+                == core::mem::discriminant(&NodeBody::Value(T::default()))
         );
 
         let mut body = NodeBody::Children(vec![]);
-        std::mem::swap(&mut body, &mut self.body);
+        core::mem::swap(&mut body, &mut self.body);
         self.key = self.key[..self.key.len() - key.len()]
             .to_vec()
             .into_boxed_slice();
@@ -164,8 +175,10 @@ impl<T: Integer> Node<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> Eq for Node<T> {}
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> PartialEq for Node<T> {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
@@ -179,14 +192,16 @@ pub(crate) fn cmp(a: &[u8], b: &[u8]) -> Ordering {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> PartialOrd for Node<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(Ord::cmp(self, &other))
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T: Integer> Ord for Node<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         cmp(&*self.key, &*other.key)
     }
 }
