@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use bare_io::{Seek, SeekFrom, Write};
+use core2::io::{Seek, SeekFrom, Write};
 
 use core::{cmp::Ordering, convert::TryInto, fmt::Debug, mem::size_of};
 
@@ -290,7 +290,7 @@ impl<T: Integer> PathTrie<T> {
     const VERSION: u8 = 0;
     const ALIGNMENT: u8 = size_of::<T>() as u8;
 
-    pub fn write_fst<W: Write + Seek>(&self, writer: &mut W) -> Result<(), bare_io::Error> {
+    pub fn write_fst<W: Write + Seek>(&self, writer: &mut W) -> Result<(), core2::io::Error> {
         let starting_offset = writer.seek(SeekFrom::Current(0))?;
         let mut current_parent: Box<[u8]> = Default::default();
         let node_zero_buf = vec![0; Self::NODE_SIZE].into_boxed_slice();
