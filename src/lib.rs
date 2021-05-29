@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![deny(rust_2018_idioms)]
 
 use core::{

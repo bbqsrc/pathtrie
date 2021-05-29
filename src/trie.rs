@@ -5,9 +5,8 @@ use core2::io::{Seek, SeekFrom, Write};
 use core::{cmp::Ordering, convert::TryInto, fmt::Debug, mem::size_of};
 
 use crate::{fst, lcp::find_common_prefix, lcp::Prefix, node::Node, node::NodeBody, Integer};
-use alloc::{boxed::Box, collections::BTreeMap, vec, vec::Vec};
+use alloc::{borrow::Cow, boxed::Box, collections::BTreeMap, vec, vec::Vec};
 
-#[cfg(feature = "alloc")]
 impl<'a, T: Integer> RawEntries<'a, T> {
     #[inline(always)]
     fn new(node: &'a Node<T>, parent: Box<[u8]>, depth: usize) -> Self {
@@ -164,17 +163,17 @@ impl<T: Integer> PathTrie<T> {
         }
     }
 
-    #[inline]
+    // #[inline]
     pub fn keys<'a>(&'a self) -> impl Iterator<Item = Box<[u8]>> + 'a {
         self.entries().map(|x| x.0)
     }
 
-    #[inline]
+    // #[inline]
     pub fn values(&self) -> impl Iterator<Item = &T> {
         self.entries().map(|x| x.1)
     }
 
-    #[inline]
+    // #[inline]
     pub fn entries(&self) -> Entries<'_, T> {
         Entries::new(&self.root)
     }
@@ -183,20 +182,20 @@ impl<T: Integer> PathTrie<T> {
         RawEntries::new(&self.root, Default::default(), 0)
     }
 
-    #[inline]
+    // #[inline]
     pub fn insert<K: AsRef<[u8]>>(&mut self, key: K, value: T) {
         let key = key.as_ref();
         Self::insert_inner(&mut self.root, key, value)
     }
 
-    #[inline]
+    // #[inline]
     fn get_node<K: AsRef<[u8]>>(&self, key: K) -> Option<&Node<T>> {
         let key = key.as_ref();
 
         self.walk(key, &self.root)
     }
 
-    #[inline]
+    // #[inline]
     pub fn get<K: AsRef<[u8]>>(&self, key: K) -> Option<T> {
         self.get_node(key).and_then(|node| match &node.body {
             NodeBody::Children(children) => children
@@ -289,6 +288,12 @@ impl<T: Integer> PathTrie<T> {
     const NODE_SIZE: usize = size_of::<fst::Node<T>>();
     const VERSION: u8 = 0;
     const ALIGNMENT: u8 = size_of::<T>() as u8;
+
+    pub fn into_fst(&self) -> Result<fst::Fst<'_, T>, core2::io::Error> {
+        let mut buf = std::io::Cursor::new(vec![]);
+        self.write_fst(&mut buf)?;
+        Ok(fst::Fst::new(Cow::Owned(buf.into_inner())).unwrap())
+    }
 
     pub fn write_fst<W: Write + Seek>(&self, writer: &mut W) -> Result<(), core2::io::Error> {
         let starting_offset = writer.seek(SeekFrom::Current(0))?;
@@ -442,9 +447,6 @@ impl<T: Integer> PathTrie<T> {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use memmap::Mmap;
-    use std::fs::File;
-    use std::io::Cursor;
 
     #[test]
     fn insert_subset() {
@@ -535,14 +537,7 @@ mod tests {
             )
         });
 
-        let mut buf = Cursor::new(vec![]);
-        trie.write_fst(&mut buf).unwrap();
-        println!("{:?}", &buf);
-
-        std::fs::write("./test.fst", buf.into_inner()).unwrap();
-        let mmap = unsafe { Mmap::map(&File::open("./test.fst").unwrap()).unwrap() };
-        let fst = fst::Fst::<u32>::new(&mmap).unwrap();
-
+        let fst = trie.into_fst().unwrap();
         for item in paths.iter() {
             println!("MMM {}", item);
             assert_eq!(trie.get(item), fst.get(item));
@@ -584,13 +579,7 @@ mod tests {
         assert_eq!(trie.keys().count(), paths.len());
         println!("{}", &trie.root);
 
-        let mut buf = Cursor::new(vec![]);
-        trie.write_fst(&mut buf).unwrap();
-        println!("{:?}", &buf);
-
-        std::fs::write("./test2.fst", buf.into_inner()).unwrap();
-        let mmap = unsafe { Mmap::map(&File::open("./test2.fst").unwrap()).unwrap() };
-        let fst = fst::Fst::<u32>::new(&mmap).unwrap();
+        let fst = trie.into_fst().unwrap();
 
         for item in paths.iter() {
             println!("MMM {}", item);
@@ -601,13 +590,8 @@ mod tests {
     #[test]
     fn empty_fst() {
         let trie = PathTrie::<u32>::new();
-        let mut buf = Cursor::new(vec![]);
-        trie.write_fst(&mut buf).unwrap();
-        println!("{:?}", &buf);
-
-        std::fs::write("./test-empty.fst", buf.into_inner()).unwrap();
-        let mmap = unsafe { Mmap::map(&File::open("./test-empty.fst").unwrap()).unwrap() };
-        let fst = fst::Fst::<u32>::new(&mmap).unwrap();
+        let fst = trie.into_fst().unwrap();
+        
         fst.get("lol");
     }
 }

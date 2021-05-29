@@ -8,6 +8,7 @@ use core::{
     mem::size_of,
     num::NonZeroU32,
 };
+use std::borrow::Cow;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
@@ -23,7 +24,7 @@ pub enum Error {
 }
 
 pub struct Fst<'data, T> {
-    data: &'data [u8],
+    data: Cow<'data, [u8]>,
     marker: PhantomData<T>,
 }
 
@@ -37,7 +38,7 @@ impl<T> Fst<'_, T>
 where
     T: Integer + Debug,
 {
-    pub fn new(data: &[u8]) -> Result<Fst<'_, T>, Error> {
+    pub fn new(data: Cow<'_, [u8]>) -> Result<Fst<'_, T>, Error> {
         if data.len() < size_of::<Header>() {
             return Err(Error::TooSmall);
         }
@@ -59,13 +60,18 @@ where
         })
     }
 
-    #[inline(always)]
+    #[inline]
     fn node_at(&self, offset: usize) -> &Node<T> {
         tracing::trace!("Node at: {}", offset);
-        unsafe { &*(self.data.as_ptr().add(offset) as *const Node<T>) }
+        println!("Len: {}", self.data.len());
+        let (a, data, b) = unsafe { self.data.align_to::<T>() };
+        println!("{:x?} {:x?} {:x?}", a, data, b);
+        assert!(a.is_empty());
+        assert!(b.is_empty());
+        unsafe { &*(data.as_ptr().add(offset / size_of::<T>()) as *const Node<T>) }
     }
 
-    #[inline(always)]
+    #[inline]
     fn node_after(&self, node: &Node<T>) -> &Node<T> {
         #[cfg(feature = "alloc")]
         tracing::trace!("Node after: {:?}", node);
@@ -114,7 +120,6 @@ where
                     current_node = self.node_after(current_node);
                     continue;
                 }
-                // Prefix::PerfectSubset(count) => {
                 Prefix::Incomplete(count) => {
                     key = &key[count..];
                     #[cfg(feature = "alloc")]
